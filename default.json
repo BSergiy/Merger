@@ -1,0 +1,5 @@
+{
+	"from":"/Users/bsergiy/Documents/tmp/source",
+	"to":"/Users/bsergiy/Documents/tmp/dest",
+	"black_list_patterns": ["."]
+}
