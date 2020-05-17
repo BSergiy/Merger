@@ -75,7 +75,7 @@ impl Conf {
 
     pub fn is_dir_name_allowed(&self, name: &str) -> bool {
         self.black_list_patterns.iter()
-            .all(|x| !name.starts_with(x))
+            .all(|x| !name.eq(x))
     }
 }
 
