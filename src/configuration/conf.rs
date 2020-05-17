@@ -24,7 +24,7 @@ Configuration
     Source: "{}"
     Destination: "{}"
     Exclude: {:?}
-"#, self.from.to_str().unwrap(), self.to.to_str().unwrap(), self.black_list_patterns)
+"#, self.source_as_str(), self.dest_as_str(), self.black_list_patterns)
     }
 }
 
