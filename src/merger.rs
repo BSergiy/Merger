@@ -51,7 +51,7 @@ impl Merger {
 
     fn is_files_equal(lft: &Path, rht: &Path) -> std::io::Result<bool> {
         Ok(Self::is_files_have_equal_size(lft, rht)?
-            || Self::is_files_have_equal_hash(lft, rht)?)
+            && Self::is_files_have_equal_hash(lft, rht)?)
     }
 
     fn is_files_have_equal_size(lft: &Path, rht: &Path) -> std::io::Result<bool> {
