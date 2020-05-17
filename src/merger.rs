@@ -50,8 +50,42 @@ impl Merger {
     }
 
     fn is_files_equal(lft: &Path, rht: &Path) -> std::io::Result<bool> {
-        Ok(Self::is_files_have_equal_size(lft, rht)?
-            && Self::is_files_have_equal_hash(lft, rht)?)
+        if !Self::is_files_have_equal_size(lft, rht)? {
+            return Ok(false)
+        }
+
+        const BUFF_SIZE: usize = 64 * 1024;
+
+        let mut lft_buff = [0; BUFF_SIZE];
+        let mut rht_buff = [0; BUFF_SIZE];
+
+        use std::io::BufReader;
+        use std::io::prelude::*;
+        use std::fs::File;
+
+        let lft = File::open(lft)?;
+        let mut lft = BufReader::new(lft);
+
+        let rht = File::open(rht)?;
+        let mut rht = BufReader::new(rht);
+
+        loop {
+            let size = lft.read(&mut lft_buff)?;
+
+            if size != rht.read(&mut rht_buff)? {
+                return Ok(false);
+            }
+
+            if size == 0 {
+                break;
+            }
+
+            if !lft_buff[..size].eq(&rht_buff[..size]) {
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
     }
 
     fn is_files_have_equal_size(lft: &Path, rht: &Path) -> std::io::Result<bool> {
@@ -59,25 +93,6 @@ impl Merger {
         let dst_size = filesize::file_real_size(rht)?;
 
         Ok(src_size == dst_size)
-    }
-
-    fn is_files_have_equal_hash(lft: &Path, rht: &Path) -> std::io::Result<bool> {
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
-
-        let get_hash = |path: &Path| -> std::io::Result<u64> {
-            let mut hasher = DefaultHasher::new();
-
-            let content = fs::read(path)?;
-            content.hash(&mut hasher);//todo: read file through buffer
-
-            Ok(hasher.finish())
-        };
-
-        let source_hash = get_hash(lft)?;
-        let dest_hash = get_hash(rht)?;
-
-        Ok(source_hash == dest_hash)
     }
 }
 
