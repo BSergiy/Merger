@@ -1,5 +1,6 @@
 {
 	"from":"/Users/bsergiy/Documents/tmp/source",
 	"to":"/Users/bsergiy/Documents/tmp/dest",
+	"thread_count": 12,
 	"black_list_patterns": ["."]
 }

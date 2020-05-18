@@ -3,12 +3,15 @@
 use std::error::Error;
 use std::path::{Path, PathBuf};
 use std::fs;
+
+use threadpool::ThreadPool;
 use filesize;
 
 use super::configuration::conf::Conf;
 
 pub struct Merger {
-    conf: Conf
+    conf: Conf,
+    pool: ThreadPool,
 }
 
 impl Merger {
@@ -30,7 +33,7 @@ impl Merger {
         self.conf.is_dir_name_allowed(name)
     }
 
-    fn get_mirror(&self, file: &Path, src: &str, dest: &str) -> Result<PathBuf, Box<dyn Error>> {
+    fn get_mirror(file: &Path, src: &str, dest: &str) -> Result<PathBuf, Box<dyn Error>> {
         let file = file.to_str()
             .ok_or(format!("Cannot get path for {:?}", file))?;
 
@@ -100,8 +103,11 @@ impl Merger {
     pub fn new(conf: Conf) -> Merger {
         assert!(conf.is_valid());
 
+        let pool = ThreadPool::new(conf.thread_count);
+
         Merger {
-            conf
+            conf,
+            pool
         }
     }
 
@@ -112,10 +118,12 @@ impl Merger {
 
         println!("Removing extra files...");
         self.delete_extra_files(self.conf.dest())?;
+        self.pool.join();
         println!("Extra files removed\n");
 
         println!("Merge started with: {}", self.conf);
         self.merge(self.conf.source())?;
+        self.pool.join();
         println!("Files merged");
 
         println!(r#"
@@ -141,16 +149,21 @@ Merging take: {}s
                 continue;
             }
 
-            assert!(entry.path().is_file());
+            let dest = self.conf.dest_as_str().to_owned();
+            let source = self.conf.source_as_str().to_owned();
 
-            let mirror = self.get_mirror(entry.path().as_path(),
-                self.conf.dest_as_str(),
-                self.conf.source_as_str())?;
+            self.pool.execute(move || {
+                assert!(entry.path().is_file());
 
-            if !mirror.exists() {
-                println!("\tExtra file '{}' - removed", entry.path().to_str().unwrap());
-                fs::remove_file(entry.path())?;
-            }
+                let mirror = Self::get_mirror(entry.path().as_path(),
+                                              dest.as_str(),
+                                              source.as_str()).unwrap();
+
+                if !mirror.exists() {
+                    println!("\tExtra file '{}' - removed", entry.path().to_str().unwrap());
+                    fs::remove_file(entry.path()).unwrap();
+                }
+            });
         }
 
         Ok(())
@@ -172,18 +185,23 @@ Merging take: {}s
 
             assert!(entry.path().is_file());
 
-            if let Err(e) = self.merge_file(entry.path().as_path()) {
-                eprintln!("On entry '{:?}' occurs error:\n'{}'", entry, e);
-            }
+            let dest = self.conf.dest_as_str().to_owned();
+            let source = self.conf.source_as_str().to_owned();
+
+            self.pool.execute(move || {
+                if let Err(e) = Self::merge_file(
+                    entry.path().as_path(), &source, &dest)
+                {
+                    eprintln!("On entry '{:?}' occurs error:\n'{}'", entry, e);
+                }
+            });
         }
 
         Ok(())
     }
 
-    fn merge_file(&self, source_file: &Path) -> Result<(), Box<dyn Error>>{
-        let dest_file = self.get_mirror(source_file,
-                                        self.conf.source_as_str(),
-                                        self.conf.dest_as_str())?;
+    fn merge_file(source_file: &Path, source: &str, dest: &str) -> Result<(), Box<dyn Error>>{
+        let dest_file = Self::get_mirror(source_file, source, dest)?;
 
         let dest_str = dest_file.to_str()
             .ok_or(format!("Unexpected internal error: cannot get str from: '{:?}'"

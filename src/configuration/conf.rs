@@ -11,6 +11,8 @@ use std::path::{PathBuf, Path};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Conf {
+    pub thread_count: usize,
+
     from: Box<Path>,
     to: Box<Path>,
 

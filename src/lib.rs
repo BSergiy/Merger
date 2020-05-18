@@ -4,6 +4,7 @@ extern crate serde_json;
 extern crate serde_derive;
 
 extern crate filesize;
+extern crate threadpool;
 
 pub mod configuration;
 pub mod merger;
